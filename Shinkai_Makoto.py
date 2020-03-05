@@ -16,11 +16,7 @@ channel = None
 async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
-    print("===========")
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game('잉앵옹'))
-    while True:
-        await asyncio.sleep(float(random.randrange(360,2000)))
-        await channel.send('ㅗ')
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game('김장현바부'))
 
 @bot.event
 async def on_message(message):
@@ -201,7 +197,6 @@ async def on_message(message):
         else:
             await channel.send('키워드를 입력해 주세요.')
     elif message.content.startswith('!투표 확인'):
-        global votedDic
         if not votedDic:
             await channel.send('투표된 키워드가 없습니다.')
         else:
@@ -250,7 +245,9 @@ async def on_message(message):
             await channel.send('있음')
     elif not message.content.find("너의 이름은"):
         await channel.send('정말 갓애니 입니다.')
-
+    else:
+        if random.random() > 0.99:
+            await channel.send(random.choice(['ㅗ','ㅋ']))
 def getBSoup(link):
     header = {'User-Agent': 'Mozilla/5.0', 'Accept-Language':'ko-KR'}
     html = requests.get(link, headers = header)
