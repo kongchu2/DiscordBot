@@ -4,19 +4,25 @@ import youtube_dl
 import re
 import requests
 import random
+import lxml
 from bs4 import BeautifulSoup
+from selenium import webdriver
 from discord.ext import commands
-#LCK 스케줄, 현재 경기정보, 오늘 경기정보
+
 bot = commands.Bot(command_prefix='!', description='신카이 마코토')
+#driver = webdriver.Chrome('C:/Users/qwert/Desktop/chromedriver.exe')
 learnList = []
 votedDic = {}
+status_List = ['!help', '크로스 로드', 'shinkaimakoto.jp', '누군가의 시선', '그녀와 그녀의 고양이', '별의 목소리', '구름의 저편, 약속의 장소', '별을 쫓는 아이', '언어의 정원', '초속5센티미터', '날씨의 아이', '너의 이름은', 'Your Name', 'Weathering with you', '김장현바부', '엄준식?']
 channel = None
 #시간아닌거 제외처리 분, 시도 되게, 타이머 몇시 남았는지 확인, 스톱워치.
 @bot.event
 async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game('김장현바부'))
+    while True:
+        await bot.change_presence(status=discord.Status.online, activity=discord.Game(random.choice(status_List)))
+        await asyncio.sleep(600)
 
 @bot.event
 async def on_message(message):
@@ -42,9 +48,11 @@ async def on_message(message):
         embed.add_field(name = '!투표 확인', value='투표 현황을 확인 가능함', inline=False)
         embed.add_field(name = '!투표 초기화', value='투표를 초기화함.', inline=False)
         embed.add_field(name = '!롤', value='\" !롤 <nickname> \"형식으로 적으면 전적검색 함', inline=False)
-        embed.add_field(name = '포지션 #티어', value='\" !<position> <tier>티어', inline=False)
+        embed.add_field(name = '!포지션 #티어', value='\" !<position> <tier>티어 \"형식으로 적으면 <tier>별 챔피언 알려줌', inline=False)
+        embed.add_field(name = '!룬 챔피언이름', value='\" !룬 <champion>\"형식으로 적으면 룬 알려줌', inline=False)
+        embed.add_field(name = '!느낌' value='\" !<name>느낌 \"형식으로 적으면 느낌 알려줌', inline=False)
         await channel.send(embed=embed)
-    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):
+    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색
         text = message.content.replace('!', '').replace('티어', '')
         position, tier = re.split('\s',text)
         soup = getBSoup('https://www.op.gg/champion/statistics')
@@ -74,7 +82,7 @@ async def on_message(message):
             name = name + champ.select_one('div.champion-index-table__name').text.strip() + '\n'
         embed.add_field(name=position+' '+tier+'티어', value=name, inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!롤'):
+    elif message.content.startswith('!롤'):  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
         search_name = message.content.replace('!롤', '').strip()
         if search_name:
             url = 'https://www.op.gg/summoner/userName=' + search_name.replace(' ','-')
@@ -95,10 +103,40 @@ async def on_message(message):
                 embed.add_field(name='티어', value=tierRank + ' ' + tierLP, inline=False)
                 embed.add_field(name='승률', value=win+' '+lose+'\n'+winratio, inline=False)
                 embed.add_field(name='모스트', value=most_champ+'\n'+url, inline=False)
-                await channel.send(embed=embed)  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
+                await channel.send(embed=embed)
         else:
             await channel.send('소환사명을 입력해 주세요.')
-    elif message.content.startswith('!검색'):
+    elif re.fullmatch('^!룬\s[가-힣]{1,10}', message.content):#룬검색
+        champ_kor = message.content.replace('!룬 ', '').replace(' ','')
+        champ_eng = translate_champion(champ_kor)
+        if not champ_eng:
+            await channel.send('알 수 없는 챔피언명 입니다.')
+            return None
+        url = 'https://www.op.gg/champion/'+champ_eng+'/statistics'
+        soup = getBSoup(url)
+        position = soup.select_one('li.champion-stats-header__position.champion-stats-header__position--active > a > span.champion-stats-header__position__role').text.strip()
+        Main_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(2) > div > div > img')
+        Top_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(3) > div > div > img')
+        Mid_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(4) > div > div > img')
+        Bot_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(5) > div > div > img')
+        Top_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(2) > div.perk-page__item.perk-page__item--active > div > img')
+        Mid_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(3) > div.perk-page__item.perk-page__item--active > div > img')
+        Bot_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(4) > div.perk-page__item.perk-page__item--active > div > img')
+        Runes = soup.find_all('div', {'class':['perk-page__item--active']}, limit=6)
+        Main_Rune_name = Runes[0].img.get('alt').replace(':', '')
+        Top_Rune_name = Runes[1].img.get('alt')
+        Mid_Rune_name = Runes[2].img.get('alt').replace(':', '')
+        Bot_Rune_name = Runes[3].img.get('alt')
+        Sub_Top_Rune = Runes[4].img.get('alt').replace(':', '')
+        Sub_Bot_Rune = Runes[5].img.get('alt').replace(':', '')
+        await channel.send(position+' '+champ_kor+' 룬')
+        await channel.send(file=discord.File('Rune''\\'+Main_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Top_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Mid_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Bot_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Sub_Top_Rune+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Sub_Bot_Rune+'.png'))
+    elif message.content.startswith('!검색'):#youtubeAPI
         search_keyword = message.content.replace('!검색 ', '').strip()
         if search_keyword:
             url = 'https://www.youtube.com/results?search_query=' + search_keyword #채널도뽑기
@@ -247,11 +285,182 @@ async def on_message(message):
         await channel.send('정말 갓애니 입니다.')
     else:
         if random.random() > 0.99:
-            await channel.send(random.choice(['ㅗ','ㅋ']))
+            await channel.send(random.choice(['ㅗ','ㅋ','허리펴']))
+
 def getBSoup(link):
     header = {'User-Agent': 'Mozilla/5.0', 'Accept-Language':'ko-KR'}
     html = requests.get(link, headers = header)
-    soup = BeautifulSoup(html.text, 'html.parser')
+    soup = BeautifulSoup(html.text, 'lxml')
     return soup
 
+def translate_champion(champ):
+    champDic = {#opgg정보제공 안하는챔피언 예외처리
+        '가렌': 'garen',
+        '갈리오': 'galio',
+        '갱플랭크': 'gangplank',
+        '그라가스':'gragas',
+        '그레이브즈':'graves',
+        '나르':'gnar',
+        '나미':'nami',
+        '나서스':'nasus',
+        '노틸러스':'nautilus',
+        '녹턴':'nocturne',
+        '누누와 윌럼프':'nunu',
+        '니달리':'nidalee',
+        '니코':'neeko',
+        '다리우스':'darius',
+        '다이애나':'diana',
+        '드레이븐':'draven',
+        '라이즈':'ryze',
+        '라칸':'rakan',
+        '람머스':'rammus',
+        '럭스':'lux',
+        '럼블':'rumble',
+        '레넥톤':'renekton',
+        '레오나':'leona',
+        '렉사이':'reksai',
+        '렝가':'rengar',
+        '루시안':'lucian',
+        '룰루':'lulu',
+        '르블랑':'leblanc',
+        '리신':'leesin',
+        '리신':'leesin',
+        '리븐':'riven',
+        '리산드라':'lissandra',
+        '마스터이':'masteryi',
+        '마이':'masteryi',
+        '마오카이':'maokai',
+        '말자하':'malzahar',
+        '말파이트':'malphite',
+        '모데카이저':'mordekaiser',
+        '모르가나':'morgana',
+        '문도박사':'drmundo',
+        '미스포츈':'missfortune',
+        '미포': 'missfortune',
+        '바드':'bard',
+        '바루스':'varus',
+        '바이':'vi',
+        '베이가':'veigar',
+        '베인':'vayne',
+        '벨코즈':'velkoz',
+        '볼리베어':'volibear',
+        '브라움':'braum',
+        '브랜드':'brand',
+        '블라디미르':'vladimir',
+        '블리츠크랭크':'blitzcrank',
+        '블츠':'blitzcrank',
+        '빅토르':'viktor',
+        '뽀삐':'poppy',
+        '사이온':'sion',
+        '사일러스':'sylas',
+        '샤코':'shaco',
+        '세나':'senna',
+        '세주아니':'sejuani',
+        '세트':'sett',
+        '소나':'sona',
+        '소라카':'soraka',
+        '쉔':'shen',
+        '쉬바나':'shyvana',
+        '스웨인':'swain',
+        '스카너':'skarner',
+        '시비르':'sivir',
+        '신짜오':'xinzhao',
+        '신드라':'syndra',
+        '신지드':'singed',
+        '쓰레쉬':'thresh',
+        '아리':'ahri',
+        '아무무':'amumu',
+        '아우렐리온솔':'aurelionsol',
+        '아이번':'ivern',
+        '아지르':'azir',
+        '아칼리':'akali',
+        '아트록스':'aatrox',
+        '아펠리오스':'aphelios',
+        '알리스타':'alistar',
+        '애니':'annie',
+        '애니비아':'anivia',
+        '애쉬':'ashe',
+        '야스오':'yasuo',
+        '에코':'ekko',
+        '엘리스':'elise',
+        '오공':'monkeyking',
+        '오른':'ornn',
+        '오리아나':'orianna',
+        '올라프':'olaf',
+        '요릭':'yorick',
+        '우디르':'udyr',
+        '우르곳':'urgot',
+        '워윅':'warwick',
+        '유미':'yuumi',
+        '이렐리아':'irelia',
+        '이블린':'evelynn',
+        '이즈리얼':'ezreal',
+        '일라오이':'illaoi',
+        '자르반4세':'jarvaniv',
+        '자르반':'jarvaniv',
+        '자야':'xayah',
+        '자이라':'zyra',
+        '자크': 'zac',
+        '잔나': 'janna',
+        '잭스': 'jax',
+        '제드': 'zed',
+        '제라스': 'xerath',
+        '제이스': 'jayce',
+        '조이': 'zoe',
+        '직스': 'ziggs',
+        '진': 'jhin',
+        '질리언': 'zilean',
+        '징크스': 'jinx',
+        '초가스': 'chogath',
+        '카르마': 'karma',
+        '카밀': 'camille',
+        '카사딘': 'kassadin',
+        '카서스': 'karthus',
+        '카시오페아': 'cassiopeia',
+        '카이사': 'kaisa',
+        '카직스': 'khazix',
+        '카타리나': 'katarina',
+        '칼리스타': 'kalista',
+        '케넨': 'kennen',
+        '케이틀린': 'caitlyn',
+        '케인': 'kayn',
+        '케일': 'kayle',
+        '코그모': 'kogmaw',
+        '코르키': 'corki',
+        '퀸': 'quinn',
+        '클레드': 'kled',
+        '키아나': 'qiyana',
+        '킨드레드': 'kindred',
+        '타릭': 'taric',
+        '탈론': 'talon',
+        '탈리야': 'taliyah',
+        '탐켄치': 'tahmkench',
+        '트런들': 'trundle',
+        '트리스타나': 'tristana',
+        '트타': 'tristana',
+        '트린다미어': 'tryndamere',
+        '트위스티드페이트': 'twistedfate',
+        '트페': 'twistedfate',
+        '트위치': 'twitch',
+        '티모': 'teemo',
+        '파이크': 'pyke',
+        '판테온': 'pantheon',
+        '피들스틱': 'fiddlesticks',
+        '피오라': 'fiora',
+        '피즈': 'fizz',
+        '하이머딩거': 'heimerdinger',
+        '하딩': 'heimerdinger',
+        '헤카림': 'hecarim',
+    }
+    if champ in champDic.keys():
+        return champDic[champ]
+    else: 
+        return None
+
+def getActiveRune(Runes):
+    for Rune in Runes:
+        if not 'grayscale' in Rune.get('src'):
+            return Rune.get('alt')
+    return None
+                
 bot.run("Njg0MzExMjcwNzMxNTQ2NzAy.Xl4SYg.dSRKG6ZYluij5jqS3mzRF_hqj9U")
