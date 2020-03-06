@@ -50,7 +50,7 @@ async def on_message(message):
         embed.add_field(name = '!롤', value='\" !롤 <nickname> \"형식으로 적으면 전적검색 함', inline=False)
         embed.add_field(name = '!포지션 #티어', value='\" !<position> <tier>티어 \"형식으로 적으면 <tier>별 챔피언 알려줌', inline=False)
         embed.add_field(name = '!룬 챔피언이름', value='\" !룬 <champion>\"형식으로 적으면 룬 알려줌', inline=False)
-        embed.add_field(name = '!느낌' value='\" !<name>느낌 \"형식으로 적으면 느낌 알려줌', inline=False)
+        embed.add_field(name = '!느낌', value='\" !<name>느낌 \"형식으로 적으면 느낌 알려줌', inline=False)
         await channel.send(embed=embed)
     elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색
         text = message.content.replace('!', '').replace('티어', '')
