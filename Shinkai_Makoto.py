@@ -15,21 +15,20 @@ learnList = []
 votedDic = {}
 status_List = ['!help', '크로스 로드', 'shinkaimakoto.jp', '누군가의 시선', '그녀와 그녀의 고양이', '별의 목소리', '구름의 저편, 약속의 장소', '별을 쫓는 아이', '언어의 정원', '초속5센티미터', '날씨의 아이', '너의 이름은', 'Your Name', 'Weathering with you', '김장현바부', '엄준식?']
 channel = None
-#시간아닌거 제외처리 분, 시도 되게, 타이머 몇시 남았는지 확인, 스톱워치.
 @bot.event
 async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     while True:
         await bot.change_presence(status=discord.Status.online, activity=discord.Game(random.choice(status_List)))
-        await asyncio.sleep(600)
+        await asyncio.sleep(600)#watching
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return None
     id = message.author.name #Embed타이틀 없애도 됨 없애도 되는거 없애기
-    channel = message.channel
+    channel = message.channel#롤템알려주기
     if message.content.startswith('!재생'): 
         voice_channel = message.author.voice.channel
         voice_client = await voice_channel.connect()
@@ -49,11 +48,101 @@ async def on_message(message):
         embed.add_field(name = '!투표 초기화', value='투표를 초기화함.', inline=False)
         embed.add_field(name = '!롤', value='\" !롤 <nickname> \"형식으로 적으면 전적검색 함', inline=False)
         embed.add_field(name = '!포지션 #티어', value='\" !<position> <tier>티어 \"형식으로 적으면 <tier>별 챔피언 알려줌', inline=False)
-        embed.add_field(name = '!룬 챔피언이름', value='\" !룬 <champion>\"형식으로 적으면 룬 알려줌', inline=False)
+        embed.add_field(name = '!챔피언이름 룬', value='\" !<champion> 룬 \"형식으로 적으면 룬 알려줌', inline=False)
+        embed.add_field(name = '!챔피언이름 시작템', value='\" !<champion> 시작템 \"형식으로 적으면 시작아이템 알려줌', inline=False)
+        embed.add_field(name = '!챔피언이름 템', value='\" !<champion> 템 \"형식으로 적으면 픽률 기준 추천빌드 알려줌 (3개)', inline=False)
         embed.add_field(name = '!느낌', value='\" !<name>느낌 \"형식으로 적으면 느낌 알려줌', inline=False)
         await channel.send(embed=embed)
+    elif message.content.startswith('!롤'):  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
+        search_name = message.content.replace('!롤', '').strip()
+        if search_name:
+            url = 'https://www.op.gg/summoner/userName=' + search_name.replace(' ','-')
+            soup = getBSoup(url)
+            if soup.select_one('div.SummonerNotFoundLayout'):
+                await channel.send('존재하지 않는 소환사입니다.')
+            elif soup.select_one('div.TierRankInfo > div.TierRank.unranked'):
+                await channel.send('언랭은 정보를 제공하지 않습니다.')
+            else:
+                name = soup.select_one('div.Profile > div.Information > span').text
+                tierRank = soup.select_one('div.TierRankInfo > div.TierRank').text
+                tierLP = soup.select_one('div.TierInfo > span.LeaguePoints').text
+                win = soup.select_one('div.TierInfo > span.WinLose > span.wins').text
+                lose = soup.select_one('div.TierInfo > span.WinLose > span.losses').text
+                winratio = soup.select_one('div.TierInfo > span.WinLose > span.winratio').text.replace('Win Ratio ', '')
+                most_champ = soup.select_one('div.MostChampionContent.tabItem.overview-stats--all > div > div:nth-child(1) > div.ChampionInfo > div.ChampionName > a').text
+                embed = discord.Embed(title = name, color = discord.Colour.blue())
+                embed.add_field(name='티어', value=tierRank + ' ' + tierLP, inline=False)
+                embed.add_field(name='승률', value=win+' '+lose+'\n'+winratio, inline=False)
+                embed.add_field(name='모스트', value=most_champ+'\n'+url, inline=False)
+                await channel.send(embed=embed)
+        else:
+            await channel.send('소환사명을 입력해 주세요.')
+    elif re.fullmatch('^!시작템\s[가-힣]{1,10}', message.content) or re.fullmatch('^![가-힣]{1,10}\s시작템', message.content):#첫템검색
+        champ_kor = message.content.replace('!', '').replace('시작템','').replace(' ', '')
+        champ_eng = translate_champion(champ_kor)
+        if not champ_eng:
+            await channel.send('알 수 없는 챔피언명 입니다')
+            return None     
+        url = 'https://www.op.gg/champion/'+champ_eng+'/statistics/item'
+        soup = getBSoup(url)
+        first_item = soup.find(text='시작 아이템')
+        item_box = first_item.find_parent('table')
+        tbody = item_box.find('tbody')
+        item = tbody.find_all('tr', limit=2, recursive=False)
+        item_1 = item[0].find_all('img')
+        item_2 = item[1].find_all('img')
+        for index in range(len(item_1)):
+            item_1[index] = item_1[index].get('src').split(',')[0]
+        for index in range(len(item_2)):
+            item_2[index] = item_2[index].get('src').split(',')[0]
+        for item in item_1:
+            print(item)
+            await channel.send(embed=discord.Embed(type='image', colour=discord.Color.blue()).set_image(url='https:' + item))
+        await channel.send('OR')
+        for item in item_2:
+            await channel.send(embed=discord.Embed(type='image', colour=discord.Color.blue()).set_image(url='https:' + item))
+    elif re.fullmatch('^!템\s[가-힣]{1,10}',message.content) or re.fullmatch('^![가-힣]{1,10}\s템', message.content):#템검색
+        champ_kor = message.content.replace('!', '').replace('템', '').replace(' ', '')
+        champ_eng = translate_champion(champ_kor)
+        if not champ_eng:
+            await channel.send('알 수 없는 챔피언명 입니다')
+            return None
+        url = 'https://www.op.gg/champion/'+champ_eng+'/statistics'
+        soup = getBSoup(url)
+        itemtable = soup.find_all('table', {'class':'champion-overview__table'},  limit=2)[1]
+        items = itemtable.find_all('tr', {'class':'champion-overview__row'}, limit=3)[2]
+        item_imgs = items.find_all('img')
+        for img in item_imgs:
+            img = 'https:' + img.get('src')
+            if 'blet' in img:
+                continue
+            print(img)
+            await channel.send(embed=discord.Embed(type='image', colour=discord.Color.blue()).set_image(url=img))
+    elif re.fullmatch('^!룬\s[가-힣]{1,10}', message.content) or re.fullmatch('^![가-힣]{1,10}\s룬', message.content):#룬검색
+        champ_kor = message.content.replace('!', '').replace('룬','').replace(' ', '')
+        champ_eng = translate_champion(champ_kor)
+        if not champ_eng:
+            await channel.send('알 수 없는 챔피언명 입니다.')
+            return None
+        url = 'https://www.op.gg/champion/'+champ_eng+'/statistics/rune'
+        soup = getBSoup(url)
+        position = soup.select_one('li.champion-stats-header__position.champion-stats-header__position--active > a > span.champion-stats-header__position__role').text.strip()
+        Runes = soup.find_all('div', {'class':'perk-page__item--active'}, limit=6)
+        Main_Rune_name = Runes[0].img.get('alt').replace(':', '')
+        Top_Rune_name = Runes[1].img.get('alt')
+        Mid_Rune_name = Runes[2].img.get('alt').replace(':', '')
+        Bot_Rune_name = Runes[3].img.get('alt')
+        Sub_Top_Rune = Runes[4].img.get('alt').replace(':', '')
+        Sub_Bot_Rune = Runes[5].img.get('alt').replace(':', '')
+        await channel.send(position+' '+champ_kor+' 룬')
+        await channel.send(file=discord.File('Rune''\\'+Main_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Top_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Mid_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Bot_Rune_name+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Sub_Top_Rune+'.png'))
+        await channel.send(file=discord.File('Rune''\\'+Sub_Bot_Rune+'.png'))
     elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색
-        text = message.content.replace('!', '').replace('티어', '')
+        text = message.content.replace('!', '').replace('티어', '')#op티어 적용 확인 못함
         position, tier = re.split('\s',text)
         soup = getBSoup('https://www.op.gg/champion/statistics')
 
@@ -82,60 +171,6 @@ async def on_message(message):
             name = name + champ.select_one('div.champion-index-table__name').text.strip() + '\n'
         embed.add_field(name=position+' '+tier+'티어', value=name, inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!롤'):  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
-        search_name = message.content.replace('!롤', '').strip()
-        if search_name:
-            url = 'https://www.op.gg/summoner/userName=' + search_name.replace(' ','-')
-            soup = getBSoup(url)
-            if soup.select_one('div.SummonerNotFoundLayout'):
-                await channel.send('존재하지 않는 소환사입니다.')
-            elif soup.select_one('div.TierRankInfo > div.TierRank.unranked'):
-                await channel.send('언랭은 정보를 제공하지 않습니다.')
-            else:
-                name = soup.select_one('div.Profile > div.Information > span').text
-                tierRank = soup.select_one('div.TierRankInfo > div.TierRank').text
-                tierLP = soup.select_one('div.TierInfo > span.LeaguePoints').text
-                win = soup.select_one('div.TierInfo > span.WinLose > span.wins').text
-                lose = soup.select_one('div.TierInfo > span.WinLose > span.losses').text
-                winratio = soup.select_one('div.TierInfo > span.WinLose > span.winratio').text.replace('Win Ratio ', '')
-                most_champ = soup.select_one('div.MostChampionContent.tabItem.overview-stats--all > div > div:nth-child(1) > div.ChampionInfo > div.ChampionName > a').text
-                embed = discord.Embed(title = name, color = discord.Colour.blue())
-                embed.add_field(name='티어', value=tierRank + ' ' + tierLP, inline=False)
-                embed.add_field(name='승률', value=win+' '+lose+'\n'+winratio, inline=False)
-                embed.add_field(name='모스트', value=most_champ+'\n'+url, inline=False)
-                await channel.send(embed=embed)
-        else:
-            await channel.send('소환사명을 입력해 주세요.')
-    elif re.fullmatch('^!룬\s[가-힣]{1,10}', message.content):#룬검색
-        champ_kor = message.content.replace('!룬 ', '').replace(' ','')
-        champ_eng = translate_champion(champ_kor)
-        if not champ_eng:
-            await channel.send('알 수 없는 챔피언명 입니다.')
-            return None
-        url = 'https://www.op.gg/champion/'+champ_eng+'/statistics'
-        soup = getBSoup(url)
-        position = soup.select_one('li.champion-stats-header__position.champion-stats-header__position--active > a > span.champion-stats-header__position__role').text.strip()
-        Main_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(2) > div > div > img')
-        Top_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(3) > div > div > img')
-        Mid_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(4) > div > div > img')
-        Bot_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(1) > div:nth-child(5) > div > div > img')
-        Top_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(2) > div.perk-page__item.perk-page__item--active > div > img')
-        Mid_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(3) > div.perk-page__item.perk-page__item--active > div > img')
-        Bot_sub_Rune = soup.select('tr:nth-child(1) > td.champion-overview__data > div > div:nth-child(3) > div:nth-child(4) > div.perk-page__item.perk-page__item--active > div > img')
-        Runes = soup.find_all('div', {'class':['perk-page__item--active']}, limit=6)
-        Main_Rune_name = Runes[0].img.get('alt').replace(':', '')
-        Top_Rune_name = Runes[1].img.get('alt')
-        Mid_Rune_name = Runes[2].img.get('alt').replace(':', '')
-        Bot_Rune_name = Runes[3].img.get('alt')
-        Sub_Top_Rune = Runes[4].img.get('alt').replace(':', '')
-        Sub_Bot_Rune = Runes[5].img.get('alt').replace(':', '')
-        await channel.send(position+' '+champ_kor+' 룬')
-        await channel.send(file=discord.File('Rune''\\'+Main_Rune_name+'.png'))
-        await channel.send(file=discord.File('Rune''\\'+Top_Rune_name+'.png'))
-        await channel.send(file=discord.File('Rune''\\'+Mid_Rune_name+'.png'))
-        await channel.send(file=discord.File('Rune''\\'+Bot_Rune_name+'.png'))
-        await channel.send(file=discord.File('Rune''\\'+Sub_Top_Rune+'.png'))
-        await channel.send(file=discord.File('Rune''\\'+Sub_Bot_Rune+'.png'))
     elif message.content.startswith('!검색'):#youtubeAPI
         search_keyword = message.content.replace('!검색 ', '').strip()
         if search_keyword:
@@ -152,8 +187,7 @@ async def on_message(message):
                         break
                     title = videos[index].get('title')
                     href = videos[index].get('href')
-                    embed.add_field(name=title, value='https://www.youtube.com'+href, inline=False)
-                await channel.send(embed=embed)
+                    await channel.send(embed=discord.Embed(title=title, url='https://www.youtube.com'+href, color=discord.Colour.red()))
             else:
                 await channel.send('검색 결과가 존재하지 않습니다.')
         else:
@@ -171,7 +205,7 @@ async def on_message(message):
         result = random.randrange(1, 7)
         embed.add_field(name='결과', value=result, inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!타이머'):#
+    elif message.content.startswith('!타이머'):#시간아닌거 제외처리 분, 시도 되게, 타이머 몇시 남았는지 확인, 스톱워치.
         sec = message.content.replace('!타이머', '').strip()
         if sec:
             await channel.send(sec + '초 타이머 시작')
@@ -268,7 +302,7 @@ async def on_message(message):
                     await channel.send('리스트에 ' + text + ' 가 존재하지 않습니다.')
             else:
                 await channel.send('키워드를 입력해 주세요.')
-    elif re.fullmatch('^![가-힣]{1,5}.*병신', message.content):
+    elif re.fullmatch('^![가-힣]{1,5}.*병신', message.content) or message.content.startswith('!김장현 짱깨'):
         if '홍준혁' in message.content or '마코토' in message.content:
             await channel.send('ㄴㅇㅈ')
         else:
@@ -281,6 +315,8 @@ async def on_message(message):
             await channel.send('없음')
         else:
             await channel.send('있음')
+    elif message.content.startswith('!김장현'):
+        await channel.send('짱깨')
     elif not message.content.find("너의 이름은"):
         await channel.send('정말 갓애니 입니다.')
     else:
@@ -454,8 +490,7 @@ def translate_champion(champ):
     }
     if champ in champDic.keys():
         return champDic[champ]
-    else: 
-        return None
+    return None
 
 def getActiveRune(Runes):
     for Rune in Runes:
