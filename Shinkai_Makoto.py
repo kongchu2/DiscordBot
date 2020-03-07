@@ -85,6 +85,7 @@ async def on_message(message):
             return None     
         url = 'https://www.op.gg/champion/'+champ_eng+'/statistics/item'
         soup = getBSoup(url)
+        position = soup.select_one('span.champion-stats-header__position__role').text.strip()
         first_item = soup.find(text='시작 아이템')
         item_box = first_item.find_parent('table')
         tbody = item_box.find('tbody')
@@ -95,8 +96,8 @@ async def on_message(message):
             item_1[index] = item_1[index].get('src').split(',')[0]
         for index in range(len(item_2)):
             item_2[index] = item_2[index].get('src').split(',')[0]
+        await channel.send(embed=discord.Embed(title=position + ' ' + champ_kor + ' 시작 아이템', colour=discord.Color.blue()))
         for item in item_1:
-            print(item)
             await channel.send(embed=discord.Embed(type='image', colour=discord.Color.blue()).set_image(url='https:' + item))
         await channel.send('OR')
         for item in item_2:
@@ -109,9 +110,11 @@ async def on_message(message):
             return None
         url = 'https://www.op.gg/champion/'+champ_eng+'/statistics'
         soup = getBSoup(url)
+        position = soup.select_one('span.champion-stats-header__position__role').text.strip()
         itemtable = soup.find_all('table', {'class':'champion-overview__table'},  limit=2)[1]
         items = itemtable.find_all('tr', {'class':'champion-overview__row'}, limit=3)[2]
         item_imgs = items.find_all('img')
+        await channel.send(embed=discord.Embed(title=position + ' ' + champ_kor + ' 아이템', colour=discord.Color.blue()))
         for img in item_imgs:
             img = 'https:' + img.get('src')
             if 'blet' in img:
