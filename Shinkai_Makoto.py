@@ -135,7 +135,7 @@ class MusicPlayer(commands.Cog):
                     source = await YTDLSource.regather_stream(source, loop=self.bot.loop)
                 except Exception as e:
                     await self._channel.send(f'There was an error processing your song.\n'
-                                             f'```css\n[{e}]\n```')
+                                             f'```css\n[{e}]\n```') 
                     continue
 
             source.volume = self.volume
@@ -264,7 +264,7 @@ class Music(commands.Cog):
 
         # If download is False, source will be a dict which will be used later to regather the stream.
         # If download is True, source will be a discord.FFmpegPCMAudio with a VolumeTransformer.
-        source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop, download=True)
+        source = await YTDLSource.create_source(ctx, search, loop=self.bot.loop, download=False)
         await player.queue.put(source)
 
     @commands.command(name='pause')
@@ -382,8 +382,8 @@ class Music(commands.Cog):
         """
         vc = ctx.voice_client
 
-        if not vc or not vc.is_connected():
-            return await ctx.send('I am not currently playing anything!', delete_after=20)
+        #if not vc or not vc.is_connected():
+            #return await ctx.send('I am not currently playing anything!', delete_after=20)
 
         await self.cleanup(ctx.guild)
 #playlist 재생
@@ -427,6 +427,7 @@ async def on_message(message):
         embed.add_field(name = '!투표 확인', value='투표 현황을 확인 가능함', inline=False)
         embed.add_field(name = '!투표 초기화', value='투표를 초기화함.', inline=False)
         embed.add_field(name = '!롤', value='\" !롤 <nickname> \"형식으로 적으면 전적검색 함', inline=False)
+        embed.add_field(name = '!멀티서치', value='\" !롤 <nickname1>, <nickname2>... \"형식으로 적으면 멀티서치 함', inline=False)
         embed.add_field(name = '!포지션 #티어', value='\" !<position> <tier>티어 \"형식으로 적으면 <tier>별 챔피언 알려줌', inline=False)
         embed.add_field(name = '!챔피언이름 룬', value='\" !<champion> 룬 \"형식으로 적으면 룬 알려줌', inline=False)
         embed.add_field(name = '!챔피언이름 시작템', value='\" !<champion> 시작템 \"형식으로 적으면 시작아이템 알려줌', inline=False)
@@ -440,6 +441,7 @@ async def on_message(message):
         embed.add_field(name = '!stop', value='영상 재생 종료', inline=False)
         embed.add_field(name = '!queueinfo', value='영상 큐 정보', inline=False)
         embed.add_field(name = '!섯다', value='\" !섯다 <count> \"형식으로 적으면 섯다 패<count> 개수만큼 핌', inline=False)
+        embed.add_field(name = '!번역', value='\" !번역 <字> \"형식으로 적으면 번역해줌', inline=False)
         await channel.send(embed=embed)
     elif message.content.startswith('!롤'):  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
         search_name = message.content.replace('!롤', '').strip()
@@ -457,6 +459,16 @@ async def on_message(message):
                 await Summonerinfo(search_name, channel)
         else:
             await channel.send('소환사명을 입력해 주세요.')
+    elif message.content.startswith('!멀티서치'):
+        url = "https://www.op.gg/multi/query="
+        search_names = message.content.replace('!멀티서치', '').strip()
+        if '님이 로비에 참가하셨습니다.' in search_names:
+            search_names = search_names.split('님이 로비에 참가하셨습니다.')
+        elif ',' in search_names:
+            search_names = search_names.split(',')
+        for name in search_names:
+            url = url + name.strip() + "%2C"
+        await channel.send(url)
     elif re.fullmatch('^!시작템\s[가-힣]{1,10}', message.content) or re.fullmatch('^![가-힣]{1,10}\s시작템', message.content):#첫템검색
         champ_kor = message.content.replace('!', '').replace('시작템','').replace(' ', '')
         champ_eng = translate_champion(champ_kor)
@@ -524,20 +536,20 @@ async def on_message(message):
         await channel.send(file=discord.File(path+Bot_Rune_name+'.png'))
         await channel.send(file=discord.File(path+Sub_Top_Rune+'.png'))
         await channel.send(file=discord.File(path+Sub_Bot_Rune+'.png'))
-    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색
-        text = message.content.replace('!', '').replace('티어', '')#op티어 적용 확인 못함
+    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색 #op티어 적용 확인 못함
+        text = message.content.replace('!', '').replace('티어', '')
         position, tier = re.split('\s',text)
         soup = getBSoup('https://www.op.gg/champion/statistics')
 
-        if position == '탑':
+        if position == '탑' or position == '망나니':
             position = 'TOP'
         elif position == '정글' or position == '개백정' or position == '백정':
             position = 'JUNGLE'
-        elif position == '미드' or position == '황족':
+        elif position == '미드' or position == '황족' or position == '근본':
             position = 'MID'
         elif position == '원딜' or position == '바텀' or position == '숟가락' or position == '젓가락':
             position = 'ADC'
-        elif position == '서포터' or position == '서폿' or position == '도구':
+        elif position == '서포터' or position == '서폿' or position == '도구' or position == '혜지':
             position = 'SUPPORT'
         else:
             await channel.send('알 수 없는 키워드입니다.')
@@ -592,30 +604,34 @@ async def on_message(message):
         result = random.randrange(1, 7)
         embed.add_field(name='결과', value=result, inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!타이머'):#시간아닌거 제외처리 분, 시도 되게, 타이머 몇시 남았는지 확인, 스톱워치.
-        sec = message.content.replace('!타이머', '').strip()
-        if sec:
-            await channel.send(sec + '초 타이머 시작')
-            await asyncio.sleep(float(int(sec)))
+    elif message.content.startswith('!타이머'): 
+        timetext = message.content.replace('!타이머', '').strip()
+        time = 0
+        if not timetext:
+            await channel.send('시간을 입력해 주세요')
+        if '시간' in timetext:
+            time = 3600*(int)(timetext[0:timetext.find('시간')])
+            timetext = timetext[timetext.find('시간')+2:]
+        elif '시' in timetext:
+            time = 3600*(int)(timetext[0:timetext.find('시')])
+            timetext = timetext[timetext.find('시')+1:]
+        if '분' in timetext:
+            time = time + 60*(int)(timetext[0:timetext.find('분')])
+            timetext = timetext[timetext.find('분')+1:]
+        if '초' in timetext:
+            time = time + (int)(timetext[0:timetext.find('초')])
+        if time != 0 and time <= 86400:
+            await channel.send(str(time) + '초 타이머 시작')
+            await asyncio.sleep(float(time))
             await channel.send('타이머 끝')
-        else:
-            await channel.send('시간를 입력해 주세요.')
-    elif message.content.startswith('!리스트 추가'):#최적화
+    elif message.content.startswith('!리스트 추가'):
         text = message.content.replace('!리스트 추가', '').strip()
         if text:
-            if ',' in text:
-                textList = text.split(',')
-                for text in textList:
-                    textList[textList.index(text)] = text.strip()
-                for txt in textList:
-                    if txt in learnList:
-                        await channel.send('이미 리스트에 존재하는 word입니다.')   
-                    else:
-                        learnList.append(txt)
-                        await channel.send(learnList[-1] + ' 추가되었습니다')
-            else:
+            textList = text.split(',')
+            for text in textList:
+                text = text.strip()
                 if text in learnList:
-                    await channel.send('이미 리스트에 존재하는 word입니다.')
+                    await channel.send('이미 리스트에 존재하는 word입니다.')   
                 else:
                     learnList.append(text)
                     await channel.send(learnList[-1] + ' 추가되었습니다')
@@ -640,6 +656,7 @@ async def on_message(message):
             embed.add_field(name='결과', value=random.choice(learnList), inline=False)
             await channel.send(embed=embed)
     elif message.content.startswith('!리스트 초기화'):
+        global votedDic
         del learnList[:]
         votedDic = {}
         await channel.send('리스트 초기화되었습니다.')
@@ -648,6 +665,10 @@ async def on_message(message):
         if text:
             if text in learnList:
                 learnList.remove(text)
+                for key, value in votedDic.items():
+                    if value == text:
+                        del(votedDic[key])
+                        break
                 await channel.send(text + ' 제거되었습니다.')
             else:
                 await channel.send(text + ' 는 리스트에 존재하지 않습니다.')
@@ -673,6 +694,9 @@ async def on_message(message):
     elif message.content.startswith('!투표 초기화'):
         votedDic = {}
         await channel.send('투표가 초기화되었습니다.')
+    elif message.content.startswith('!투표 취소'):
+        await channel.send(votedDic[messagesendname] + '을(를) ' + messagesendname + '(이)가 취소하였습니다.')
+        del(votedDic[messagesendname])
     elif message.content.startswith('!투표'):
         if not learnList:
             await channel.send('리스트가 비어 있습니다.')
@@ -691,7 +715,7 @@ async def on_message(message):
         if not url:
             await channel.send('url을 발견하지 못했습니다.')
             return None
-        if re.fullmatch('[0-6]', url):
+        elif re.fullmatch('[0-6]', url):
             if searched:
                 url = searched[int(url)]
         await Cog.play_(ctx, search=url)
@@ -707,6 +731,10 @@ async def on_message(message):
         await Cog.stop_(ctx)
     elif message.content.startswith('!queueinfo'):
         await Cog.queue_info(ctx)
+    elif message.content.startswith('!볼륨'):
+        volume = message.content.replace('!볼륨', '').strip()
+        volume = float(volume)
+        await Cog.change_volume(ctx, vol=volume)
     elif message.content.startswith('!번역'):
         translate_url = "https://openapi.naver.com/v1/papago/n2mt"
         detectlang_url = "https://openapi.naver.com/v1/papago/detectLangs"
@@ -734,31 +762,6 @@ async def on_message(message):
         await channel.send(random.choice(["가위","바위","보"]))
     elif message.content.startswith("!가바보") or message.content.startswith("가위바위보"):
         await channel.send(random.choice(["가위","바위","보"]))
-    else:
-        if re.fullmatch('^![가-힣]{1,5}.*병신', message.content) or message.content.startswith('!김장현 짱깨'):
-            if '홍준혁' in message.content or '마코토' in message.content:
-                await channel.send('ㄴㅇㅈ')
-            else:
-                if random.random() > 0.9:
-                    await channel.send('ㄴㅇㅈ')
-                else:
-                    await channel.send('ㅇㅈ')
-        elif re.fullmatch('^![가-힣]{1,5}느낌', message.content) or re.fullmatch('^![가-힣]{1,5}근본', message.content):
-            if '홍준혁' in message.content or '마코토' in message.content:
-                await channel.send('있음')
-            elif random.choice([True, False]):
-                await channel.send('없음')
-            else:
-                await channel.send('있음')
-        elif message.content.startswith('!김장현'):
-            await channel.send('짱깨')
-        elif not message.content.find("너의 이름은"):
-            await channel.send('정말 갓애니 입니다.')
-        elif message.content.startswith('마코토'):
-            await channel.send('왜')
-        else:
-            if random.random() > 0.9945:
-                await channel.send(random.choice(['ㅗ','ㅋ','허리펴']))
 
 def getBSoup(link):
     header = {'User-Agent': 'Mozilla/5.0', 'Accept-Language':'ko-KR'}
