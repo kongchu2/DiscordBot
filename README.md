@@ -6,22 +6,22 @@
 ## Setup
 - ffmpeg download
 ## Main function
-- youtube play
+- ##### youtube play
   - youtube search
-- list and vote
+- ##### list and vote
   - add
   - remove
   - check, voteCheck
   - randomChoice(Draw)
   - reset, voteReset
   - vote
-- LOL(League of Legend) search
+- ##### LOL(League of Legend) search
   - search, multiSearch
   - op.gg Champion item, Rune Search
   - op.gg Champion tier Search
-- Fun
+- ##### Fun
   - Heads and tails
   - dice Throw
   - sutda
-- Translate
+- ##### Translate
   - Papago auto Translate
