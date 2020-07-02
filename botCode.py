@@ -388,7 +388,7 @@ class Music(commands.Cog):
         await self.cleanup(ctx.guild)
 #playlist 재생
 
-bot = commands.Bot(command_prefix='!', description='신카이 마코토')
+bot = commands.Bot(command_prefix='!', description='')
 bot.add_cog(Music(bot))
 Cog = bot.get_cog('Music')
 commands = Cog.get_commands()
