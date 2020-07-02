@@ -398,21 +398,21 @@ searched = []
 
 @bot.event
 async def on_ready():
-    status_List = ['!help', '크로스 로드', 'shinkaimakoto.jp', '누군가의 시선', '그녀와 그녀의 고양이', '별의 목소리', '구름의 저편, 약속의 장소', '별을 쫓는 아이', '언어의 정원', '초속5센티미터', '날씨의 아이', '너의 이름은', 'Your Name', 'Weathering with you', '김장현바부', '엄준식?']
+    status_List = []
     print(bot.user.name)
     print(bot.user.id)
     while True:
         await bot.change_presence(status=discord.Status.online, activity=discord.Game(random.choice(status_List)))
-        await asyncio.sleep(600)#watching
+        await asyncio.sleep(600)
 
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return None
-    messagesendname = message.author.name #Embed타이틀 없애도 됨 없애도 되는거 없애기
+    messagesendname = message.author.name
     channel = message.channel
     ctx = await bot.get_context(message)                                                                                                                                   
-    if message.content.startswith('!명령어') or message.content.startswith('!help'):#말투 맞추기.
+    if message.content.startswith('!명령어') or message.content.startswith('!help'):
         embed = discord.Embed(title = '명령어들이에옹', color = discord.Colour.blue())
         embed.add_field(name = '!검색', value='\" !검색 <keyword> \" 형식으로 적으면 유튜브에 검색함', inline=False)
         embed.add_field(name = '!동전', value='동전 던져줌', inline=False)
@@ -441,9 +441,9 @@ async def on_message(message):
         embed.add_field(name = '!stop', value='영상 재생 종료', inline=False)
         embed.add_field(name = '!queueinfo', value='영상 큐 정보', inline=False)
         embed.add_field(name = '!섯다', value='\" !섯다 <count> \"형식으로 적으면 섯다 패<count> 개수만큼 핌', inline=False)
-        embed.add_field(name = '!번역', value='\" !번역 <字> \"형식으로 적으면 번역해줌', inline=False)
+        embed.add_field(name = '!번역', value='\" !번역 <문장> \"형식으로 적으면 번역해줌', inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!롤'):  # RIOTAPI 를 통해 인게임 정보를 얻어보자.
+    elif message.content.startswith('!롤'):
         search_name = message.content.replace('!롤', '').strip()
         if search_name:
             if '님이 로비에 참가하셨습니다.' in search_name:
@@ -536,7 +536,7 @@ async def on_message(message):
         await channel.send(file=discord.File(path+Bot_Rune_name+'.png'))
         await channel.send(file=discord.File(path+Sub_Top_Rune+'.png'))
         await channel.send(file=discord.File(path+Sub_Bot_Rune+'.png'))
-    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#챔티어검색 #op티어 적용 확인 못함
+    elif re.fullmatch('^![가-힣]{1,3}\s\d티어', message.content):#op티어 적용 확인 못함
         text = message.content.replace('!', '').replace('티어', '')
         position, tier = re.split('\s',text)
         soup = getBSoup('https://www.op.gg/champion/statistics')
@@ -566,12 +566,11 @@ async def on_message(message):
             name = name + champ.select_one('div.champion-index-table__name').text.strip() + '\n'
         embed.add_field(name=position+' '+tier+'티어', value=name, inline=False)
         await channel.send(embed=embed)
-    elif message.content.startswith('!검색'):#youtubeAPI
+    elif message.content.startswith('!검색'):
         search_keyword = message.content.replace('!검색 ', '').strip()
         if search_keyword:
-            url = 'https://www.youtube.com/results?search_query=' + search_keyword.replace(' ', '+') #채널도뽑기
+            url = 'https://www.youtube.com/results?search_query=' + search_keyword.replace(' ', '+')
             soup = getBSoup(url)
-            #videos = soup.find_all('a', {'id':'video-title'})
             videos = soup.select('.yt-uix-tile-link yt-ui-ellipsis yt-ui-ellipsis-2 yt-uix-sessionlink      spf-link ')
             videos = soup.select('div > h3 > a')
             embed = discord.Embed(title='검색 결과', color=discord.Colour.red())
@@ -679,7 +678,6 @@ async def on_message(message):
             await channel.send('투표된 키워드가 없습니다.')
         else:
             voteCount = {}
-            #for value in votedDic.values():
             for value in learnList:
                 voteCount[value] = 0
             embed = discord.Embed(title = '투표', color = discord.Colour.green())
@@ -771,7 +769,7 @@ def getBSoup(link):
 
 def translate_champion(champ):
     champ = champ.replace(' ', '')
-    champDic = {#opgg정보제공 안하는챔피언 예외처리
+    champDic = {
         '가렌': 'garen',
         '갈리오': 'galio',
         '갱플랭크': 'gangplank',
@@ -974,4 +972,4 @@ async def Randomsutda(count, channel):
                 break
 
 
-bot.run("Njg0MzExMjcwNzMxNTQ2NzAy.Xl4SYg.dSRKG6ZYluij5jqS3mzRF_hqj9U")
+bot.run("토큰")
