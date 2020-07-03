@@ -15,7 +15,7 @@
   - randomChoice(Draw)
   - reset, voteReset
   - vote
-- #### LOL(League of Legend) search (web crawling)
+- #### LOL(League of Legend) search
   - op.gg search, multiSearch
   - op.gg Champion item, Rune Search
   - op.gg Champion tier Search
