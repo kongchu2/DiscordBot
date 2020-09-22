@@ -24,5 +24,5 @@
   - Heads and tails
   - dice Throw
   - sutda
-- #### Translate
+- #### Language Translate
   - Papago auto Translate
