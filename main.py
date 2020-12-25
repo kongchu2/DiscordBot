@@ -738,8 +738,8 @@ async def on_message(message):
     elif message.content.startswith('!번역'):
         translate_url = "https://openapi.naver.com/v1/papago/n2mt"
         detectlang_url = "https://openapi.naver.com/v1/papago/detectLangs"
-        client_id = "2gMRoiw06wiRi79S6rk_"
-        client_secret = "6Xi6lacoB9"
+        client_id = ""
+        client_secret = ""
         headers = {"X-Naver-Client-Id": client_id, "X-Naver-Client-Secret": client_secret}
         text = message.content.replace('!번역', '')
         response = requests.post(detectlang_url, headers=headers, data={"query": text})
